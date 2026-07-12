@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Posts - Login, Signup & More</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader">
+        <div class="loader-logo">
+            <i class="fas fa-blog"></i>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-blog"></i> SocialPosts
+        </div>
+        <div class="nav-links" id="navLinks">
+            <a href="#home" onclick="showSection('home')"><i class="fas fa-home"></i> Home</a>
+            <a href="#posts" onclick="showSection('posts')" id="navPosts" style="display:none;"><i class="fas fa-list"></i> All Posts</a>
+            <a href="#addPost" onclick="showSection('addPost')" id="navAddPost" style="display:none;"><i class="fas fa-plus"></i> Add Post</a>
+            <a href="#login" onclick="showSection('login')" id="navLogin"><i class="fas fa-sign-in-alt"></i> Login</a>
+            <a href="#signup" onclick="showSection('signup')" id="navSignup"><i class="fas fa-user-plus"></i> Signup</a>
+            <a href="#logout" onclick="logout(event)" id="navLogout" style="display:none;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <i class="fas fa-bars"></i>
+        </div>
+    </nav>
+
+    <!-- Home Section -->
+    <section id="home" class="section active">
+        <div class="hero">
+            <h1>Welcome to SocialPosts</h1>
+            <p>Create, share, and manage your posts with ease</p>
+            <div class="hero-buttons">
+                <button onclick="showSection('signup')" class="btn btn-primary">Get Started</button>
+                <button onclick="showSection('login')" class="btn btn-secondary">Login</button>
+            </div>
+            <div class="features">
+                <div class="feature-card">
+                    <i class="fas fa-user-plus"></i>
+                    <h3>Sign Up</h3>
+                    <p>Create your account</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-plus-circle"></i>
+                    <h3>Add Posts</h3>
+                    <p>Share your thoughts</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-edit"></i>
+                    <h3>Update Posts</h3>
+                    <p>Edit anytime</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-trash"></i>
+                    <h3>Delete Posts</h3>
+                    <p>Remove unwanted</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Login Section -->
+    <section id="login" class="section">
+        <div class="form-container">
+            <div class="form-box">
+                <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="input-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="loginEmail" placeholder="Enter your email" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="loginPassword" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+                <p class="form-footer">
+                    Don't have an account? 
+                    <a href="#signup" onclick="showSection('signup')">Sign Up</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Signup Section -->
+    <section id="signup" class="section">
+        <div class="form-container">
+            <div class="form-box">
+                <h2><i class="fas fa-user-plus"></i> Sign Up</h2>
+                <form id="signupForm" onsubmit="handleSignup(event)">
+                    <div class="input-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="signupName" placeholder="Enter your name" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="signupEmail" placeholder="Enter your email" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="signupPassword" placeholder="Create a password" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-lock"></i> Confirm Password</label>
+                        <input type="password" id="signupConfirmPassword" placeholder="Confirm your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-user-plus"></i> Sign Up
+                    </button>
+                </form>
+                <p class="form-footer">
+                    Already have an account? 
+                    <a href="#login" onclick="showSection('login')">Login</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- All Posts Section -->
+    <section id="posts" class="section">
+        <div class="container">
+            <h2><i class="fas fa-list"></i> All Posts</h2>
+            <div id="postsContainer" class="posts-grid">
+                <!-- Posts will be loaded here -->
+            </div>
+            <button id="deleteAllBtn" class="btn btn-danger" onclick="deleteAllPosts()" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 100;">
+                <i class="fas fa-trash-alt"></i> Delete All
+            </button>
+        </div>
+    </section>
+
+    <!-- Add Post Section -->
+    <section id="addPost" class="section">
+        <div class="form-container">
+            <div class="form-box">
+                <h2><i class="fas fa-plus-circle"></i> Add New Post</h2>
+                <form id="addPostForm" onsubmit="handleAddPost(event)">
+                    <div class="input-group">
+                        <label><i class="fas fa-heading"></i> Title</label>
+                        <input type="text" id="postTitle" placeholder="Enter post title" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-align-left"></i> Content</label>
+                        <textarea id="postContent" rows="5" placeholder="Write your post content..." required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-image"></i> Image</label>
+                        <input type="file" id="postImage" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-plus"></i> Add Post
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Edit Post Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2><i class="fas fa-edit"></i> Edit Post</h2>
+            <form id="editPostForm" onsubmit="handleUpdatePost(event)">
+                <input type="hidden" id="editPostId">
+                <div class="input-group">
+                    <label><i class="fas fa-heading"></i> Title</label>
+                    <input type="text" id="editPostTitle" required>
+                </div>
+                <div class="input-group">
+                    <label><i class="fas fa-align-left"></i> Content</label>
+                    <textarea id="editPostContent" rows="5" required></textarea>
+                </div>
+                <div class="input-group">
+                    <label><i class="fas fa-image"></i> Image (optional)</label>
+                    <input type="file" id="editPostImage" accept="image/*">
+                    <img id="editPostImagePreview" src="" alt="Current Image" style="max-width: 100%; margin-top: 10px; display: none;">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fas fa-save"></i> Update Post
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Background Animation -->
+    <ul class="circles">
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+    </ul>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    
+    <script src="app.js"></script>
+</body>
+</html>
