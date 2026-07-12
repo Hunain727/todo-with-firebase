@@ -19,6 +19,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const analytics = firebase.analytics(app);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 // Preloader
 window.addEventListener('load', () => {
@@ -32,14 +34,34 @@ window.addEventListener('load', () => {
 
 // App State
 let currentUser = null;
-let posts = [];
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
-    loadUserFromStorage();
-    loadPostsFromStorage();
-    checkAuthStatus();
-    showSection('home');
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // User is signed in.
+            db.collection('users').doc(user.uid).get().then(doc => {
+                if (doc.exists) {
+                    currentUser = { uid: user.uid, email: user.email, ...doc.data() };
+                } else {
+                    // Fallback if user doc doesn't exist for some reason
+                    currentUser = { uid: user.uid, email: user.email, name: user.email };
+                }
+                updateUIForLoggedInUser();
+                const currentHash = window.location.hash.substring(1);
+                if (!currentHash || currentHash === 'login' || currentHash === 'signup' || currentHash === 'home') {
+                    showSection('posts');
+                } else {
+                    showSection(currentHash);
+                }
+            });
+        } else {
+            // User is signed out.
+            currentUser = null;
+            updateUIForLoggedOutUser();
+            showSection('home');
+        }
+    });
 });
 
 // ==================== NAVIGATION ====================
@@ -71,137 +93,97 @@ function toggleMenu() {
 
 // ==================== AUTHENTICATION ====================
 
-function handleSignup(event) {
+async function handleSignup(event) {
     event.preventDefault();
     
     const name = document.getElementById('signupName').value;
     const email = document.getElementById('signupEmail').value;
     const password = document.getElementById('signupPassword').value;
     const confirmPassword = document.getElementById('signupConfirmPassword').value;
-    
-    // Validation
+
     if (password !== confirmPassword) {
         showToast('Passwords do not match!', 'error');
         return;
     }
-    
     if (password.length < 6) {
         showToast('Password must be at least 6 characters!', 'error');
         return;
     }
-    
-    // Get existing users
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    
-    // Check if email already exists
-    if (users.find(user => user.email === email)) {
-        showToast('Email already registered!', 'error');
-        return;
+
+    try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        // Store user's name in Firestore
+        await db.collection('users').doc(user.uid).set({
+            name: name,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showToast('Account created successfully!', 'success');
+        document.getElementById('signupForm').reset();
+        // onAuthStateChanged will handle the redirect
+    } catch (error) {
+        showToast(error.message, 'error');
     }
-    
-    // Create new user
-    const newUser = {
-        id: Date.now(),
-        name,
-        email,
-        password,
-        createdAt: new Date().toISOString()
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    showToast('Account created successfully! Please login.', 'success');
-    
-    // Clear form and redirect to login
-    document.getElementById('signupForm').reset();
-    setTimeout(() => showSection('login'), 1000);
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
     
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     
-    // Get users from storage
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    
-    // Find user
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-        // Set current user
-        currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        
-        showToast(`Welcome back, ${user.name}!`, 'success');
-        
-        // Clear form
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+        showToast('Logged in successfully!', 'success');
         document.getElementById('loginForm').reset();
-        
-        // Update UI
-        checkAuthStatus();
-        
-        // Redirect to posts
-        showSection('posts');
-    } else {
-        showToast('Invalid email or password!', 'error');
+        // onAuthStateChanged will handle the redirect
+    } catch (error) {
+        showToast(error.message, 'error');
     }
 }
 
-function logout(event) {
+async function logout(event) {
     if (event) event.preventDefault();
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-    
-    showToast('Logged out successfully!', 'success');
-    
-    checkAuthStatus();
-    showSection('home');
-}
-
-function loadUserFromStorage() {
-    const user = localStorage.getItem('currentUser');
-    if (user) {
-        currentUser = JSON.parse(user);
+    try {
+        await auth.signOut();
+        showToast('Logged out successfully!', 'success');
+        // onAuthStateChanged will handle UI updates and redirection
+    } catch (error) {
+        showToast(error.message, 'error');
     }
 }
 
-function checkAuthStatus() {
+function updateUIForLoggedInUser() {
     const navLogin = document.getElementById('navLogin');
     const navSignup = document.getElementById('navSignup');
     const navLogout = document.getElementById('navLogout');
     const navPosts = document.getElementById('navPosts');
     const navAddPost = document.getElementById('navAddPost');
-    
-    if (currentUser) {
-        navLogin.style.display = 'none';
-        navSignup.style.display = 'none';
-        navLogout.style.display = 'block';
-        navPosts.style.display = 'block';
-        navAddPost.style.display = 'block';
-    } else {
-        navLogin.style.display = 'block';
-        navSignup.style.display = 'block';
-        navLogout.style.display = 'none';
-        navPosts.style.display = 'none';
-        navAddPost.style.display = 'none';
-    }
+
+    navLogin.style.display = 'none';
+    navSignup.style.display = 'none';
+    navLogout.style.display = 'block';
+    navPosts.style.display = 'block';
+    navAddPost.style.display = 'block';
+}
+
+function updateUIForLoggedOutUser() {
+    const navLogin = document.getElementById('navLogin');
+    const navSignup = document.getElementById('navSignup');
+    const navLogout = document.getElementById('navLogout');
+    const navPosts = document.getElementById('navPosts');
+    const navAddPost = document.getElementById('navAddPost');
+
+    navLogin.style.display = 'block';
+    navSignup.style.display = 'block';
+    navLogout.style.display = 'none';
+    navPosts.style.display = 'none';
+    navAddPost.style.display = 'none';
 }
 
 // ==================== POSTS ====================
-
-function loadPostsFromStorage() {
-    const storedPosts = localStorage.getItem('posts');
-    if (storedPosts) {
-        posts = JSON.parse(storedPosts);
-    }
-}
-
-function savePostsToStorage() {
-    localStorage.setItem('posts', JSON.stringify(posts));
-}
 
 async function handleAddPost(event) {
     event.preventDefault();
@@ -215,6 +197,7 @@ async function handleAddPost(event) {
     const title = document.getElementById('postTitle').value;
     const content = document.getElementById('postContent').value;
     const imageFile = document.getElementById('postImage').files[0];
+    // Note: Image upload to Firebase Storage is not implemented here. Storing as Data URL.
     let imageUrl = null;
 
     if (imageFile) {
@@ -231,24 +214,26 @@ async function handleAddPost(event) {
     }
 
     const newPost = {
-        id: Date.now(),
         title,
         content,
         imageUrl,
         author: currentUser.name,
-        authorId: currentUser.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        authorId: currentUser.uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    posts.unshift(newPost); // Add to beginning
-    savePostsToStorage();
-    showToast('Post added successfully!', 'success');
-    document.getElementById('addPostForm').reset();
-    showSection('posts');
+    try {
+        await db.collection('posts').add(newPost);
+        showToast('Post added successfully!', 'success');
+        document.getElementById('addPostForm').reset();
+        showSection('posts');
+    } catch (error) {
+        showToast('Error adding post: ' + error.message, 'error');
+    }
 }
 
-function displayPosts() {
+async function displayPosts() {
     const container = document.getElementById('postsContainer');
     const deleteAllBtn = document.getElementById('deleteAllBtn');
     
@@ -264,8 +249,16 @@ function displayPosts() {
         return;
     }
     
-    // Filter posts by current user
-    const userPosts = posts.filter(post => post.authorId === currentUser.id);
+    // Fetch posts from Firestore for the current user
+    const postsQuery = db.collection('posts')
+        .where('authorId', '==', currentUser.uid)
+        .orderBy('createdAt', 'desc');
+
+    const snapshot = await postsQuery.get();
+    const userPosts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
     
     if (userPosts.length === 0) {
         container.innerHTML = `
@@ -282,7 +275,9 @@ function displayPosts() {
     
     deleteAllBtn.style.display = 'block';
 
-    container.innerHTML = userPosts.map(post => `
+    container.innerHTML = userPosts.map(post => {
+        const createdAt = post.createdAt ? post.createdAt.toDate() : new Date();
+        return `
         <div class="post-card">
             ${post.imageUrl ? `<img src="${post.imageUrl}" alt="Post Image" class="post-main-image">` : ''}
             <div class="post-header">
@@ -290,14 +285,14 @@ function displayPosts() {
                     <div class="post-avatar">${post.author.charAt(0).toUpperCase()}</div>
                     <div class="post-info">
                         <h3>${escapeHtml(post.title)}</h3>
-                        <span>${post.author} • ${formatDate(post.createdAt)}</span>
+                        <span>${post.author} • ${formatDate(createdAt)}</span>
                     </div>
                 </div>
                 <div class="post-actions">
-                    <button onclick="openEditModal(${post.id})" class="btn btn-sm btn-edit">
+                    <button onclick="openEditModal('${post.id}')" class="btn btn-sm btn-edit">
                         <i class="fas fa-edit"></i> Edit
                     </button>
-                    <button onclick="deletePost(${post.id})" class="btn btn-sm btn-delete">
+                    <button onclick="deletePost('${post.id}')" class="btn btn-sm btn-delete">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
@@ -306,7 +301,7 @@ function displayPosts() {
                 ${escapeHtml(post.content)}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function deletePost(postId) {
@@ -320,8 +315,7 @@ function deletePost(postId) {
         confirmButtonText: "Yes, delete it!"
     }).then((result) => {
         if (result.isConfirmed) {
-            posts = posts.filter(post => post.id !== postId);
-            savePostsToStorage();
+            db.collection('posts').doc(postId).delete();
             displayPosts();
             Swal.fire(
                 'Deleted!',
@@ -343,9 +337,15 @@ function deleteAllPosts() {
         confirmButtonText: 'Yes, delete all!'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Filter out posts that do NOT belong to the current user
-            posts = posts.filter(post => post.authorId !== currentUser.id);
-            savePostsToStorage();
+            const batch = db.batch();
+            db.collection('posts').where('authorId', '==', currentUser.uid).get()
+                .then(snapshot => {
+                    snapshot.docs.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    return batch.commit();
+                });
+
             displayPosts();
             Swal.fire(
                 'Deleted!',
@@ -358,13 +358,15 @@ function deleteAllPosts() {
 
 // ==================== EDIT POST ====================
 
-function openEditModal(postId) {
-    const post = posts.find(p => p.id === postId);
-    if (!post) {
+async function openEditModal(postId) {
+    const doc = await db.collection('posts').doc(postId).get();
+    if (!doc.exists) {
         showToast('Post not found!', 'error');
         return;
     }
-    
+
+    const post = { id: doc.id, ...doc.data() };
+
     document.getElementById('editPostId').value = post.id;
     document.getElementById('editPostTitle').value = post.title;
     document.getElementById('editPostContent').value = post.content;
@@ -391,21 +393,16 @@ function closeEditModal() {
 async function handleUpdatePost(event) {
     event.preventDefault();
     
-    const postId = parseInt(document.getElementById('editPostId').value);
+    const postId = document.getElementById('editPostId').value;
     const title = document.getElementById('editPostTitle').value;
     const content = document.getElementById('editPostContent').value;
     const imageFile = document.getElementById('editPostImage').files[0];
 
-    const postIndex = posts.findIndex(p => p.id === postId);
-    if (postIndex === -1) {
-        showToast('Post not found!', 'error');
-        return;
-    }
-
-    const updatedPost = { ...posts[postIndex] };
-    updatedPost.title = title;
-    updatedPost.content = content;
-    updatedPost.updatedAt = new Date().toISOString();
+    const updatedPostData = {
+        title,
+        content,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
 
     if (imageFile) {
         if (imageFile.size > 2 * 1024 * 1024) { // 2MB limit
@@ -413,18 +410,21 @@ async function handleUpdatePost(event) {
             return;
         }
         try {
-            updatedPost.imageUrl = await readFileAsDataURL(imageFile);
+            updatedPostData.imageUrl = await readFileAsDataURL(imageFile);
         } catch (error) {
             showToast('Error reading image file.', 'error');
             return;
         }
     }
 
-    posts[postIndex] = updatedPost;
-    savePostsToStorage();
-    showToast('Post updated successfully!', 'success');
-    closeEditModal();
-    displayPosts();
+    try {
+        await db.collection('posts').doc(postId).update(updatedPostData);
+        showToast('Post updated successfully!', 'success');
+        closeEditModal();
+        displayPosts();
+    } catch (error) {
+        showToast('Error updating post: ' + error.message, 'error');
+    }
 }
 
 // ==================== UTILITIES ====================
@@ -485,5 +485,8 @@ window.onclick = function(event) {
 // Handle browser back/forward buttons
 window.addEventListener('hashchange', () => {
     const hash = window.location.hash.slice(1) || 'home';
-    showSection(hash);
+    // Only show section if it's not an auth page and user is logged out
+    if (currentUser || ['home', 'login', 'signup'].includes(hash)) {
+        showSection(hash);
+    }
 });
